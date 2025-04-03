@@ -10,6 +10,69 @@ Por ultimo se quiser usar os dados de batalha de outro jogador é preciso ou bai
 PS: Já temos esse endpoint funcionando
 
 
+
+Antes de Fazer qualquer consulta deve ser feito uma requisição. requisição essa com a função de pegar os dados da api e armazenar no banco MongoDB.
+Deve ser feito de seguinte forma.
+
+```bash
+http://127.0.0.1:5000/player/battlelog/<tag>
+````
+Onde o Campo TAG deve conter a tag do jogor com isso sera baixado os dados da ultimas 30 batalhas do player.
+
+Exemplo de como deve ser feira;
+```bash
+http://127.0.0.1:5000/player/battlelog/202GY8C0YP
+```
+Exemplo de Uma Batalha:
+```bash
+ {
+    "arena": {
+      "id": 54000011,
+      "name": "Spooky Town"
+    },
+    "battleTime": "20250403T175213.000Z",
+    "deckSelection": "collection",
+    "gameMode": {
+      "id": 72000006,
+      "name": "Ladder"
+    },
+    "isHostedMatch": false,
+    "isLadderTournament": false,
+    "leagueNumber": 1,
+    "opponent": [
+      {
+    "team": [
+      {,
+        "crowns": 1,
+        "elixirLeaked": 1.17,
+        "globalRank": null,
+        "kingTowerHitPoints": 4392,
+        "name": "IceBee2007",
+        "princessTowersHitPoints": null,
+        "startingTrophies": 3898,
+        "supportCards": [
+          {
+            "iconUrls": {
+              "medium": "https://api-assets.clashroyale.com/cards/300/MVj028nMLCmBuP3HlV503uxVAxFg7jyliJVZ5JYJ1h8.png"
+            },
+            "id": 159000002,
+            "level": 2,
+            "maxLevel": 6,
+            "name": "Dagger Duchess",
+            "rarity": "legendary"
+          }
+        ],
+        "tag": "#202GY8C0YP",
+        "trophyChange": -30
+      }
+    ],
+    "type": "PvP"
+  }
+```
+
+
+
+
 Consultas Solicitadas:
 Descrição:
 Este endpoint retorna a taxa de vitória de um card específico dentro de um intervalo de tempo definido.
