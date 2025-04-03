@@ -15,13 +15,13 @@ Antes de Fazer qualquer consulta deve ser feito uma requisição. requisição e
 Deve ser feito de seguinte forma.
 
 ```bash
-http://127.0.0.1:5000/player/battlelog/<tag>
+http://127.0.0.1:5000/battlelog/<tag>
 ````
 Onde o Campo TAG deve conter a tag do jogor com isso sera baixado os dados da ultimas 30 batalhas do player.
 
 Exemplo de como deve ser feira;
 ```bash
-http://127.0.0.1:5000/player/battlelog/202GY8C0YP
+http://127.0.0.1:5000/battlelog/202GY8C0YP
 ```
 Exemplo de Uma Batalha: A consulta não esta completo porque ela é gigante.
 ```bash
