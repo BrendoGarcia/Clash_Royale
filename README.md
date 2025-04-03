@@ -23,7 +23,7 @@ Exemplo de como deve ser feira;
 ```bash
 http://127.0.0.1:5000/player/battlelog/202GY8C0YP
 ```
-Exemplo de Uma Batalha:
+Exemplo de Uma Batalha: A consulta não esta completo porque ela é gigante.
 ```bash
  {
     "arena": {
