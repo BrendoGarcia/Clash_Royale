@@ -3,8 +3,11 @@ from pymongo import MongoClient
 import requests
 from datetime import datetime
 import re
+from collections import defaultdict
 from datetime import datetime
 from pymongo import MongoClient
+import json
+
 
 
 # Configuração do MongoDB
@@ -101,42 +104,44 @@ def calculate_win_rate(card_name, start_time, end_time):
 
 # Consulta 2: Decks completos com taxa de vitória superior a X%
 def get_successful_decks(win_threshold, start_time, end_time):
-    # Validando datas
     start_time = validate_date(start_time)
     end_time = validate_date(end_time)
+
     if not start_time or not end_time:
         return {"error": "Invalid date format. Use 'YYYY-MM-DDTHH:MM:SS'"}
 
     pipeline = [
-    # Filtro para o intervalo de tempo
-    {"$match": {"battleTime": {"$gte": start_time, "$lte": end_time}}},
-    
-    # Desenrolar o deck da equipe para que possamos trabalhar com cada carta individualmente
-    {"$unwind": "$team.deck"},
-    
-    # Agrupar os resultados por deck e calcular a taxa de vitória
-    {"$group": {
-        "_id": "$team.deck",
-        "total_battles": {"$sum": 1},
-        "wins": {
-            "$sum": {
-                "$cond": [{"$eq": ["$winner", "team"]}, 1, 0]
-            }
-        }
-    }},
-    
-    # Calcular a taxa de vitória
-    {"$addFields": {
-        "win_rate": {"$divide": ["$wins", "$total_battles"]}
-    }},
-    
-    # Filtrar os decks com taxa de vitória superior ao limite
-    {"$match": {
-        "win_rate": {"$gte": win_threshold / 100}
-    }}
-]
+        # Filtro para o intervalo de tempo
+        {"$match": {"battleTime": {"$gte": start_time, "$lte": end_time}}},
 
-    return list(battles_collection.aggregate(pipeline))
+        # Desenrolar o deck da equipe para contar vitórias por cada deck
+        {"$unwind": "$team.deck"},
+
+        # Determinar se o time venceu com base na quantidade de crowns
+        {"$group": {
+            "_id": "$team.deck",
+            "total_battles": {"$sum": 1},
+            "wins": {
+                "$sum": {
+                    "$cond": [{"$gt": ["$team.crowns", "$opponent.crowns"]}, 1, 0]
+                }
+            }
+        }},
+
+        # Calcular a taxa de vitória
+        {"$addFields": {
+            "win_rate": {"$multiply": [{"$divide": ["$wins", "$total_battles"]}, 100]}
+        }},
+
+        # Filtrar decks com taxa de vitória acima do limite definido
+        {"$match": {
+            "win_rate": {"$gte": win_threshold}
+        }}
+    ]
+
+    resultado = list(battles_collection.aggregate(pipeline))
+    print("Resultado da Query:", resultado)  # Debug
+    return resultado
 
 # Consulta 3: Derrotas utilizando um combo de cartas
 def calculate_losses_with_combo(cards, start_time, end_time):
@@ -175,12 +180,76 @@ def win_rate():
     return jsonify(result)
 
 # Rota para obter decks vitoriosos
-@app.route("/decks", methods=["GET"])
-def decks():
-    win_threshold = float(request.args.get("win_threshold", 50))
-    start_time = request.args.get("start_time")
-    end_time = request.args.get("end_time")
-    return jsonify(get_successful_decks(win_threshold, start_time, end_time))
+@app.route('/winning-decks', methods=['GET'])
+def get_winning_decks():
+    try:
+        win_threshold = float(request.args.get('win_threshold', 50))
+        start_time = request.args.get('start_time', '2000-01-01T00:00:00')
+        end_time = request.args.get('end_time', '2100-01-01T00:00:00')
+
+        start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+        end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
+
+        print(f"Iniciando consulta de decks vencedores...")
+        print(f"Parâmetros recebidos - win_threshold: {win_threshold}, start_time: {start_time}, end_time: {end_time}")
+
+        battles = list(battles_collection.find({"battleTime": {"$gte": start_time, "$lte": end_time}}))
+        print(f"Total de batalhas encontradas: {len(battles)}")
+
+        deck_stats = defaultdict(lambda: {'wins': 0, 'total': 0, 'players': set()})
+
+        for battle in battles:
+            team = battle.get('team', [{}])[0]
+            opponent = battle.get('opponent', [{}])[0]
+
+            if 'crowns' not in team or 'crowns' not in opponent:
+                continue
+
+            if team['crowns'] > opponent['crowns']:
+                winner = team
+                loser = opponent
+            elif opponent['crowns'] > team['crowns']:
+                winner = opponent
+                loser = team
+            else:
+                continue  # Empate
+
+            # Decks como tupla de strings
+            winner_deck = tuple(sorted([str(card) for card in winner.get('cards', [])]))
+            loser_deck = tuple(sorted([str(card) for card in loser.get('cards', [])]))
+
+            # Captura nome do jogador vencedor
+            winner_name = winner.get('name', 'Desconhecido')
+
+            deck_stats[winner_deck]['wins'] += 1
+            deck_stats[winner_deck]['total'] += 1
+            deck_stats[winner_deck]['players'].add(winner_name)
+
+            deck_stats[loser_deck]['total'] += 1
+
+        # Montagem do resultado final
+        resultados = []
+
+        for deck, stats in deck_stats.items():
+            winrate = (stats['wins'] / stats['total']) * 100 if stats['total'] > 0 else 0
+
+            if abs(winrate - win_threshold) <= 5:  # ±5% margem
+                resultados.append({
+                    'deck_cartas': list(deck),
+                    'winrate_percentual': round(winrate, 2),
+                    'vitorias': stats['wins'],
+                    'jogadores_vencedores': list(stats['players']),
+                    'batalhas_total': stats['total']
+                })
+
+        # Organiza por maior taxa de vitória
+        resultados = sorted(resultados, key=lambda d: d['winrate_percentual'], reverse=True)
+
+        return jsonify(resultados)
+
+    except Exception as e:
+        print(f"Erro ao buscar os decks vencedores: {e}")
+        return jsonify({'erro': 'Erro ao buscar os decks vencedores'}), 500
 
 # Rota para calcular derrotas com combo de cartas
 @app.route("/losses_with_combo", methods=["GET"])
