@@ -57,14 +57,13 @@ def validate_date(date_str):
 
 # Consulta 1: Porcentagem de vitórias com uma carta específica
 def calculate_win_rate(card_name, start_time, end_time):
-
     start_time = validate_date(start_time)
     end_time = validate_date(end_time)
 
     if not start_time or not end_time:
         return {"error": "Formato de data inválido. Use 'YYYY-MM-DDTHH:MM:SS'"}
 
-    # Contar todas as batalhas onde a carta apareceu
+    # Total de batalhas em que a carta participou
     total_battles = battles_collection.count_documents({
         "battleTime": {"$gte": start_time, "$lte": end_time},
         "$or": [
@@ -73,25 +72,25 @@ def calculate_win_rate(card_name, start_time, end_time):
         ]
     })
 
-    # Contar vitórias quando a carta está no time vencedor
+    # Vitórias com a carta no time vencedor
     wins_as_team = battles_collection.count_documents({
         "battleTime": {"$gte": start_time, "$lte": end_time},
         "team.cards.name": card_name,
-        "$expr": {"$gt": [{"$arrayElemAt": ["$team.crowns", 0]}, {"$arrayElemAt": ["$opponent.crowns", 0]}]}
+        "$expr": {"$gt": ["$team.crowns", "$opponent.crowns"]}
     })
 
-    # Contar vitórias quando a carta está no oponente vencedor
+    # Vitórias com a carta no oponente vencedor
     wins_as_opponent = battles_collection.count_documents({
         "battleTime": {"$gte": start_time, "$lte": end_time},
         "opponent.cards.name": card_name,
-        "$expr": {"$gt": [{"$arrayElemAt": ["$opponent.crowns", 0]}, {"$arrayElemAt": ["$team.crowns", 0]}]}
+        "$expr": {"$gt": ["$opponent.crowns", "$team.crowns"]}
     })
 
-    # Total de vitórias da carta
     total_wins = wins_as_team + wins_as_opponent
+    total_losses = total_battles - total_wins
 
-    # Calcular a taxa de vitória
-    win_rate = (total_wins / total_battles * 100) if total_battles > 0 else 0
+    win_rate = round((total_wins / total_battles * 100), 2) if total_battles > 0 else 0
+    loss_rate = round((total_losses / total_battles * 100), 2) if total_battles > 0 else 0
 
     return {
         "card_name": card_name,
@@ -99,8 +98,11 @@ def calculate_win_rate(card_name, start_time, end_time):
         "end_time": end_time.strftime("%Y-%m-%dT%H:%M:%S"),
         "total_battles": total_battles,
         "total_wins": total_wins,
-        "win_rate": win_rate
+        "total_losses": total_losses,
+        "win_rate": win_rate,
+        "loss_rate": loss_rate
     }
+
 
 # Consulta 2: Decks completos com taxa de vitória superior a X%
 def get_successful_decks(win_threshold, start_time, end_time):
@@ -156,6 +158,135 @@ def calculate_losses_with_combo(cards, start_time, end_time):
         "team.cards.name": {"$all": cards},
         "winner": "opponent"
     })
+
+def calculate_disadvantage_wins(card_name, trophy_percent):
+    trophy_factor = 1 - (trophy_percent / 100)
+
+    query = {
+        "$expr": {
+            "$and": [
+                # Partida durou menos de 120 segundos
+                {"$lt": ["$duration", 120]},
+                
+                # Vencedor teve menos troféus que o perdedor, com Z% de diferença
+                {
+                    "$cond": [
+                        {"$gt": [{"$arrayElemAt": ["$team.crowns", 0]}, {"$arrayElemAt": ["$opponent.crowns", 0]}]},
+                        {
+                            "$lt": [
+                                {"$arrayElemAt": ["$team.startTrophies", 0]},
+                                {
+                                    "$multiply": [
+                                        {"$arrayElemAt": ["$opponent.startTrophies", 0]},
+                                        trophy_factor
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "$lt": [
+                                {"$arrayElemAt": ["$opponent.startTrophies", 0]},
+                                {
+                                    "$multiply": [
+                                        {"$arrayElemAt": ["$team.startTrophies", 0]},
+                                        trophy_factor
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+
+                # Perdedor destruiu 2 ou mais torres
+                {
+                    "$cond": [
+                        {"$gt": [{"$arrayElemAt": ["$team.crowns", 0]}, {"$arrayElemAt": ["$opponent.crowns", 0]}]},
+                        {"$gte": [{"$arrayElemAt": ["$opponent.crowns", 0]}, 2]},
+                        {"$gte": [{"$arrayElemAt": ["$team.crowns", 0]}, 2]}
+                    ]
+                }
+            ]
+        },
+        "$or": [
+            {"team.cards.name": card_name},
+            {"opponent.cards.name": card_name}
+        ]
+    }
+
+    result = battles_collection.count_documents(query)
+    return {"card": card_name, "disadvantage_victories": result}
+
+def top_combos(n, min_win_rate, start_time, end_time):
+    pipeline = [
+        {
+            "$match": {
+                "battleTime": {"$gte": start_time, "$lte": end_time},
+                "team.cards": {"$exists": True},
+                "opponent.cards": {"$exists": True}
+            }
+        },
+        {
+            "$project": {
+                "team_cards": "$team.cards.name",
+                "team_crowns": {"$arrayElemAt": ["$team.crowns", 0]},
+                "opponent_crowns": {"$arrayElemAt": ["$opponent.crowns", 0]}
+            }
+        },
+        {
+            "$project": {
+                "combo": {
+                    "$slice": [
+                        {"$setUnion": ["$team_cards"]}, n
+                    ]
+                },
+                "is_win": {"$gt": ["$team_crowns", "$opponent_crowns"]}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$combo",
+                "total": {"$sum": 1},
+                "wins": {"$sum": {"$cond": ["$is_win", 1, 0]}}
+            }
+        },
+        {
+            "$project": {
+                "total": 1,
+                "wins": 1,
+                "win_rate": {
+                    "$cond": [
+                        {"$eq": ["$total", 0]},
+                        0,
+                        {"$multiply": [{"$divide": ["$wins", "$total"]}, 100]}
+                    ]
+                }
+            }
+        },
+        {
+            "$match": {
+                "win_rate": {"$gte": min_win_rate}
+            }
+        },
+        {
+            "$sort": {"win_rate": -1}
+        },
+        {
+            "$limit": 10
+        }
+    ]
+
+    result = battles_collection.aggregate(pipeline)
+
+    return [
+        {
+            "combo": r["_id"],
+            "wins": r["wins"],
+            "total_battles": r["total"],
+            "win_rate": round(r["win_rate"], 2)
+        }
+        for r in result
+    ]
+
 
 # Rota para calcular taxa de vitória
 @app.route("/winrate", methods=["GET"])
@@ -254,10 +385,43 @@ def get_winning_decks():
 # Rota para calcular derrotas com combo de cartas
 @app.route("/losses_with_combo", methods=["GET"])
 def losses_with_combo():
-    cards = request.args.getlist("cards")
-    start_time = request.args.get("start_time")
-    end_time = request.args.get("end_time")
-    return jsonify({"losses": calculate_losses_with_combo(cards, start_time, end_time)})
+    try:
+        cards = request.args.getlist("cards")
+        start_time = request.args.get("start_time", "2000-01-01T00:00:00")
+        end_time = request.args.get("end_time", "2100-01-01T00:00:00")
+
+        start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+        end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
+
+        losses = 0
+
+        battles = battles_collection.find({"battleTime": {"$gte": start_time, "$lte": end_time}})
+
+        for battle in battles:
+            team = battle.get("team", [{}])[0]
+            opponent = battle.get("opponent", [{}])[0]
+
+            if 'crowns' not in team or 'crowns' not in opponent:
+                continue
+
+            if team['crowns'] < opponent['crowns']:
+                loser = team
+            elif opponent['crowns'] < team['crowns']:
+                loser = opponent
+            else:
+                continue  # empate
+
+            loser_cards = [card.get("name") if isinstance(card, dict) else card for card in loser.get("cards", [])]
+
+            if all(card in loser_cards for card in cards):
+                losses += 1
+
+        return jsonify({"losses": losses})
+
+    except Exception as e:
+        print(f"Erro ao calcular derrotas com combo: {e}")
+        return jsonify({"erro": "Erro ao calcular derrotas com combo"}), 500
+
 
 # Rota para obter dados de um jogador
 @app.route("/player/<tag>", methods=["GET"])
@@ -274,6 +438,136 @@ def get_battle_log(tag):
     if data:
         return jsonify(data)
     return jsonify({"error": "No battle logs found"}), 404
+
+# Rota Para Obter as Vitoais Estranhas;
+@app.route('/vitorias-desvantagem', methods=['GET'])
+def vitorias_com_desvantagem():
+    card_name = request.args.get('card')
+    trophy_percent = float(request.args.get('percent', 20))
+
+    trophy_factor = 1 - (trophy_percent / 100)
+
+    query = {
+        "$expr": {
+            "$and": [
+                {"$lt": ["$duration", 120]},
+                {
+                    "$cond": [
+                        {"$gt": [{"$arrayElemAt": ["$team.crowns", 0]}, {"$arrayElemAt": ["$opponent.crowns", 0]}]},
+                        {
+                            "$lt": [
+                                {"$arrayElemAt": ["$team.startTrophies", 0]},
+                                {"$multiply": [{"$arrayElemAt": ["$opponent.startTrophies", 0]}, trophy_factor]}
+                            ]
+                        },
+                        {
+                            "$lt": [
+                                {"$arrayElemAt": ["$opponent.startTrophies", 0]},
+                                {"$multiply": [{"$arrayElemAt": ["$team.startTrophies", 0]}, trophy_factor]}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "$cond": [
+                        {"$gt": [{"$arrayElemAt": ["$team.crowns", 0]}, {"$arrayElemAt": ["$opponent.crowns", 0]}]},
+                        {"$gte": [{"$arrayElemAt": ["$opponent.crowns", 0]}, 2]},
+                        {"$gte": [{"$arrayElemAt": ["$team.crowns", 0]}, 2]}
+                    ]
+                }
+            ]
+        },
+        "$or": [
+            {"team.cards.name": card_name},
+            {"opponent.cards.name": card_name}
+        ]
+    }
+
+    total = battles_collection.count_documents(query)
+
+    return jsonify({
+        "card": card_name,
+        "disadvantage_victories": total
+    })
+
+# Rota Para obter os cambos vencedores
+@app.route('/combos-vencedores', methods=['GET'])
+def combos_vencedores():
+    try:
+        n = int(request.args.get('n'))
+        min_win_rate = float(request.args.get('percent'))
+        start = datetime.fromisoformat(request.args.get('start'))
+        end = datetime.fromisoformat(request.args.get('end'))
+    except:
+        return jsonify({"error": "Parâmetros inválidos"}), 400
+
+    pipeline = [
+        {
+            "$match": {
+                "battleTime": {"$gte": start, "$lte": end},
+                "team.cards": {"$exists": True},
+                "opponent.cards": {"$exists": True}
+            }
+        },
+        {
+            "$project": {
+                "team_cards": "$team.cards.name",
+                "team_crowns": {"$arrayElemAt": ["$team.crowns", 0]},
+                "opponent_crowns": {"$arrayElemAt": ["$opponent.crowns", 0]}
+            }
+        },
+        {
+            "$project": {
+                "combo": {
+                    "$slice": [{"$setUnion": ["$team_cards"]}, n]
+                },
+                "is_win": {"$gt": ["$team_crowns", "$opponent_crowns"]}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$combo",
+                "total": {"$sum": 1},
+                "wins": {"$sum": {"$cond": ["$is_win", 1, 0]}}
+            }
+        },
+        {
+            "$project": {
+                "total": 1,
+                "wins": 1,
+                "win_rate": {
+                    "$cond": [
+                        {"$eq": ["$total", 0]},
+                        0,
+                        {"$multiply": [{"$divide": ["$wins", "$total"]}, 100]}
+                    ]
+                }
+            }
+        },
+        {
+            "$match": {
+                "win_rate": {"$gte": min_win_rate}
+            }
+        },
+        {
+            "$sort": {"win_rate": -1}
+        },
+        {
+            "$limit": 100
+        }
+    ]
+
+    results = list(battles_collection.aggregate(pipeline))
+
+    return jsonify([
+        {
+            "combo": r["_id"],
+            "wins": r["wins"],
+            "total_battles": r["total"],
+            "win_rate": round(r["win_rate"], 2)
+        }
+        for r in results
+    ])
 
 if __name__ == "__main__":
     app.run(debug=True)

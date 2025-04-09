@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../backia"
+		},
+		{
+			"path": "../frontendia"
+		},
+		{
+			"path": "../testes"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "frontendia"
+	}
+}
