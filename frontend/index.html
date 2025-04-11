@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard de Batalhas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f4f4f4;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+        section {
+            background: white;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        input, select {
+            padding: 5px;
+            margin-top: 4px;
+            width: 100%;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px;
+            background: #007BFF;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #eee;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dashboard de Análises</h1>
+
+    <!-- Win Rate -->
+    <section>
+        <h2>1. Calcular Win Rate</h2>
+        <label>Nome da Carta: <input id="wr_card"></label>
+        <label>Início: <input id="wr_start" type="datetime-local"></label>
+        <label>Fim: <input id="wr_end" type="datetime-local"></label>
+        <button onclick="getWinRate()">Buscar</button>
+        <pre id="wr_result"></pre>
+    </section>
+
+    <!-- Decks Vencedores -->
+    <section>
+        <h2>2. Decks Vencedores</h2>
+        <label>Win Threshold (%): <input id="wd_threshold" type="number" value="50"></label>
+        <label>Início: <input id="wd_start" type="datetime-local"></label>
+        <label>Fim: <input id="wd_end" type="datetime-local"></label>
+        <button onclick="getWinningDecks()">Buscar</button>
+        <pre id="wd_result"></pre>
+    </section>
+
+    <!-- Derrotas com Combo -->
+    <section>
+        <h2>3. Derrotas com Combo</h2>
+        <label>Cartas (separadas por vírgula): <input id="lc_cards"></label>
+        <label>Início: <input id="lc_start" type="datetime-local"></label>
+        <label>Fim: <input id="lc_end" type="datetime-local"></label>
+        <button onclick="getLossesWithCombo()">Buscar</button>
+        <pre id="lc_result"></pre>
+    </section>
+
+    <!-- Dados de Jogador -->
+    <section>
+        <h2>4. Dados do Jogador</h2>
+        <label>Tag do Jogador: <input id="player_tag"></label>
+        <button onclick="getPlayer()">Buscar</button>
+        <pre id="player_result"></pre>
+    </section>
+
+    <!-- Histórico de Batalhas -->
+    <section>
+        <h2>5. Histórico de Batalhas</h2>
+        <label>Tag do Jogador: <input id="battle_tag"></label>
+        <button onclick="getBattleLog()">Buscar</button>
+        <pre id="battle_result"></pre>
+    </section>
+
+    <!-- Vitórias com Desvantagem -->
+    <section>
+        <h2>6. Vitórias com Desvantagem</h2>
+        <label>Nome da Carta: <input id="vd_card"></label>
+        <label>Porcentagem de Desvantagem: <input id="vd_percent" type="number" value="20"></label>
+        <button onclick="getVitoriasDesvantagem()">Buscar</button>
+        <pre id="vd_result"></pre>
+    </section>
+
+    <!-- Combos Vencedores -->
+    <section>
+        <h2>7. Combos Vencedores</h2>
+        <label>Quantidade de Cartas no Combo (n): <input id="cv_n" type="number"></label>
+        <label>Winrate mínima (%): <input id="cv_percent" type="number"></label>
+        <label>Início: <input id="cv_start" type="datetime-local"></label>
+        <label>Fim: <input id="cv_end" type="datetime-local"></label>
+        <button onclick="getCombosVencedores()">Buscar</button>
+        <pre id="cv_result"></pre>
+    </section>
+
+    <script>
+        const baseUrl = "http://localhost:5000";
+
+        function formatDate(id) {
+            const val = document.getElementById(id).value;
+            return new Date(val).toISOString().split(".")[0];
+        }
+
+        async function getWinRate() {
+            const card = document.getElementById("wr_card").value;
+            const start = formatDate("wr_start");
+            const end = formatDate("wr_end");
+            const res = await fetch(`${baseUrl}/winrate?card_name=${card}&start_time=${start}&end_time=${end}`);
+            const data = await res.json();
+            document.getElementById("wr_result").textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function getWinningDecks() {
+            const threshold = document.getElementById("wd_threshold").value;
+            const start = formatDate("wd_start");
+            const end = formatDate("wd_end");
+            const res = await fetch(`${baseUrl}/winning-decks?win_threshold=${threshold}&start_time=${start}&end_time=${end}`);
+            const data = await res.json();
+            document.getElementById("wd_result").textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function getLossesWithCombo() {
+            const cards = document.getElementById("lc_cards").value.split(",").map(c => c.trim());
+            const start = formatDate("lc_start");
+            const end = formatDate("lc_end");
+            const params = new URLSearchParams();
+            cards.forEach(card => params.append("cards", card));
+            params.append("start_time", start);
+            params.append("end_time", end);
+            const res = await fetch(`${baseUrl}/losses_with_combo?${params.toString()}`);
+            const data = await res.json();
+            document.getElementById("lc_result").textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function getPlayer() {
+            const tag = document.getElementById("player_tag").value;
+            const res = await fetch(`${baseUrl}/player/${tag}`);
+            const data = await res.json();
+            document.getElementById("player_result").textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function getBattleLog() {
+            const tag = document.getElementById("battle_tag").value;
+            const res = await fetch(`${baseUrl}/battlelog/${tag}`);
+            const data = await res.json();
+            document.getElementById("battle_result").textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function getVitoriasDesvantagem() {
+            const card = document.getElementById("vd_card").value;
+            const percent = document.getElementById("vd_percent").value;
+            const res = await fetch(`${baseUrl}/vitorias-desvantagem?card=${card}&percent=${percent}`);
+            const data = await res.json();
+            document.getElementById("vd_result").textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function getCombosVencedores() {
+            const n = document.getElementById("cv_n").value;
+            const percent = document.getElementById("cv_percent").value;
+            const start = formatDate("cv_start");
+            const end = formatDate("cv_end");
+            const res = await fetch(`${baseUrl}/combos-vencedores?n=${n}&percent=${percent}&start=${start}&end=${end}`);
+            const data = await res.json();
+            document.getElementById("cv_result").textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>
