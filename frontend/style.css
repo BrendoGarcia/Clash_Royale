@@ -40,8 +40,6 @@ body::before {
     z-index: -1;
 }
 
-/* TUDO ABAIXO PERMANECE EXATAMENTE IGUAL AO SEU CSS ORIGINAL */
-
 .cr-header {
     position: relative;
     text-align: center;

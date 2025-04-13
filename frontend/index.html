@@ -16,12 +16,42 @@
     </header>
 
     <main class="cr-container">
-        <!-- 1. Calcular Win Rate -->
+        <!-- 1. Dados do Jogador -->
+        <section class="card-effect">
+            <div class="cr-card-icon">
+                <img src="./img/icons48.png" alt="Player Icon">
+            </div>
+            <h2>1. Dados do Jogador</h2>
+            <div class="cr-form-content">
+                <label>Tag do Jogador: <input id="player_tag"></label>
+                <div class="cr-button-container">
+                    <button onclick="getPlayer()">BUSCAR</button>
+                </div>
+                <pre id="player_result"></pre>
+            </div>
+        </section>
+
+        <!-- 2. Histórico de Batalhas -->
+        <section class="card-effect">
+            <div class="cr-card-icon">
+                <img src="./img/icons48.png" alt="Battle Icon">
+            </div>
+            <h2>2. Histórico de Batalhas</h2>
+            <div class="cr-form-content">
+                <label>Tag do Jogador: <input id="battle_tag"></label>
+                <div class="cr-button-container">
+                    <button onclick="getBattleLog()">BUSCAR</button>
+                </div>
+                <pre id="battle_result"></pre>
+            </div>
+        </section>
+
+        <!-- 3. Calcular Win Rate -->
         <section class="card-effect">
             <div class="cr-card-icon">
                 <img src="./img/icons48.png" alt="Win Rate Icon">
             </div>
-            <h2>1. Calcular Win Rate</h2>
+            <h2>3. Calcular Win Rate</h2>
             <div class="cr-form-content">
                 <label>Nome da Carta: <input id="wr_card"></label>
                 <div class="cr-datetime-group">
@@ -35,12 +65,12 @@
             </div>
         </section>
 
-        <!-- 2. Decks Vencedores -->
+        <!-- 4. Decks Vencedores -->
         <section class="card-effect">
             <div class="cr-card-icon">
                 <img src="./img/icons48.png" alt="Winning Decks Icon">
             </div>
-            <h2>2. Decks Vencedores</h2>
+            <h2>4. Decks Vencedores</h2>
             <div class="cr-form-content">
                 <label>Win Threshold (%): <input id="wd_threshold" type="number" value="50"></label>
                 <div class="cr-datetime-group">
@@ -54,12 +84,12 @@
             </div>
         </section>
 
-        <!-- 3. Derrotas com Combo -->
+        <!-- 5. Derrotas com Combo -->
         <section class="card-effect">
             <div class="cr-card-icon">
                 <img src="./img/icons48.png" alt="Combo Icon">
             </div>
-            <h2>3. Derrotas com Combo</h2>
+            <h2>5. Derrotas com Combo</h2>
             <div class="cr-form-content">
                 <label>Cartas (separadas por vírgula): <input id="lc_cards"></label>
                 <div class="cr-datetime-group">
@@ -70,36 +100,6 @@
                     <button onclick="getLossesWithCombo()">BUSCAR</button>
                 </div>
                 <pre id="lc_result"></pre>
-            </div>
-        </section>
-
-        <!-- 4. Dados do Jogador -->
-        <section class="card-effect">
-            <div class="cr-card-icon">
-                <img src="./img/icons48.png" alt="Player Icon">
-            </div>
-            <h2>4. Dados do Jogador</h2>
-            <div class="cr-form-content">
-                <label>Tag do Jogador: <input id="player_tag"></label>
-                <div class="cr-button-container">
-                    <button onclick="getPlayer()">BUSCAR</button>
-                </div>
-                <pre id="player_result"></pre>
-            </div>
-        </section>
-
-        <!-- 5. Histórico de Batalhas -->
-        <section class="card-effect">
-            <div class="cr-card-icon">
-                <img src="./img/icons48.png" alt="Battle Icon">
-            </div>
-            <h2>5. Histórico de Batalhas</h2>
-            <div class="cr-form-content">
-                <label>Tag do Jogador: <input id="battle_tag"></label>
-                <div class="cr-button-container">
-                    <button onclick="getBattleLog()">BUSCAR</button>
-                </div>
-                <pre id="battle_result"></pre>
             </div>
         </section>
 
