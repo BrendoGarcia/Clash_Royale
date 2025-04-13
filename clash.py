@@ -8,10 +8,14 @@ from datetime import datetime
 from pymongo import MongoClient
 import json
 from flask_cors import CORS
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 
 
 # Configuração do MongoDB
-client = MongoClient("mongodb://localhost:27017/")
+uri = "mongodb+srv://brendofcg:qwer1234Bb@agrupamentobanco.zb2av.mongodb.net/?appName=AgrupamentoBanco"
+# client = MongoClient("mongodb://localhost:27017/")   
+client = MongoClient(uri, server_api=ServerApi('1')) 
 db = client["clash_royale"]
 players_collection = db["players"]
 battles_collection = db["battles"]
@@ -316,8 +320,8 @@ def win_rate():
 def get_winning_decks():
     try:
         win_threshold = float(request.args.get('win_threshold', 50))
-        start_time = request.args.get('start_time', '2000-01-01T00:00:00')
-        end_time = request.args.get('end_time', '2100-01-01T00:00:00')
+        start_time = request.args.get('start_time', '2025-01-01T00:00:00')
+        end_time = request.args.get('end_time', '2025-04-01T00:00:00')
 
         start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
         end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
