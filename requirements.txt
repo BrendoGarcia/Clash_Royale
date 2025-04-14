@@ -1,0 +1,6 @@
+flask
+gunicorn
+flask-cors
+pymongo[srv]
+requests
+dnspython

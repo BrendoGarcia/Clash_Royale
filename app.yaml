@@ -1,0 +1,12 @@
+runtime: python311
+entrypoint: gunicorn -b :$PORT clash:app
+
+env_variables:
+  FLASK_ENV: production
+  # Adicione outras variáveis de ambiente, se necessário
+
+handlers:
+  - url: /static
+    static_dir: static/
+  - url: /.*
+    script: auto
