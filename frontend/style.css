@@ -40,6 +40,32 @@ body::before {
     z-index: -1;
 }
 
+.cr-side-decor {
+    position: fixed;
+    top: 0;
+    width: 350px;
+    height: 150%;
+    background-size: contain;
+    background-repeat: no-repeat;
+    z-index: -1;
+    opacity: 100;
+    pointer-events: none;
+    filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.3));
+    transition: var(--cr-transition);
+}
+
+.left-decor {
+    left: 0;
+    background-image: url('./img/rei-azul.png');
+    background-position: left center;
+}
+
+.right-decor {
+    right: 0;
+    background-image: url('./img/rei-vermelho.png');
+    background-position: right center;
+}
+
 .cr-header {
     position: relative;
     text-align: center;
