@@ -1,4 +1,4 @@
-const baseUrl = "http://localhost:5000";
+const baseUrl = "https://projetomongo-456802.rj.r.appspot.com";
 
 function formatDate(id) {
     const val = document.getElementById(id).value;
