@@ -1,0 +1,30 @@
+name: Deploy App Engine Python
+
+on:
+  push:
+    branches:
+      - main  # ou 'master', dependendo do seu fluxo
+
+jobs:
+  deploy:
+    name: Deploy no Google App Engine
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Autenticar no Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Configurar o SDK do Google Cloud
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          install_components: 'app-engine-python'
+
+      - name: Deploy para o App Engine
+        run: |
+          gcloud app deploy app.yaml --quiet
