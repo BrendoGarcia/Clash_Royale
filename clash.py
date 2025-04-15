@@ -634,6 +634,78 @@ def combos_vencedores():
         for r in results
     ])
 
+# rota para elixit
+@app.route('/cartas-menor-elixir', methods=['GET'])
+def cartas_menor_elixir():
+    pipeline = [
+        {"$unwind": "$team"},
+        {"$unwind": "$team.cards"},
+        {"$group": {
+            "_id": "$team.cards.name",
+            "elixir": {"$avg": "$team.cards.elixirCost"}  # <--- Corrigido aqui
+        }},
+        {"$sort": {"elixir": 1}}
+    ]
+
+    resultado = list(battles_collection.aggregate(pipeline))
+    return jsonify(resultado)
+
+
+# rotas cartas comuns
+@app.route('/cartas-mais-comuns', methods=['GET'])
+def cartas_mais_comuns():
+    pipeline = [
+        {"$unwind": "$team"},
+        {"$unwind": "$team.cards"},
+        {"$group": {
+            "_id": "$team.cards.name",
+            "decks": {"$sum": 1}
+        }},
+        {"$sort": {"decks": -1}},
+        {"$limit": 10}
+    ]
+
+    resultado = list(battles_collection.aggregate(pipeline))
+    return jsonify(resultado)
+
+# Jogadores com mais vitorias e seus decks
+@app.route('/top-jogadores', methods=['GET'])
+def top_jogadores():
+    pipeline = [
+        {
+            "$project": {
+                "player": "$team.name",  # Corrigido aqui
+                "cartas": "$team.cards.name",
+                "vitoria": {
+                    "$gt": [
+                        {"$arrayElemAt": ["$team.crowns", 0]},
+                        {"$arrayElemAt": ["$opponent.crowns", 0]}
+                    ]
+                }
+            }
+        },
+        {"$match": {"vitoria": True}},
+        {
+            "$group": {
+                "_id": {"jogador": "$player", "deck": "$cartas"},
+                "vitorias_com_deck": {"$sum": 1}
+            }
+        },
+        {"$sort": {"vitorias_com_deck": -1}},
+        {
+            "$group": {
+                "_id": "$_id.jogador",
+                "vitorias_totais": {"$sum": "$vitorias_com_deck"},
+                "deck_mais_usado": {"$first": "$_id.deck"},
+                "vitorias_com_deck": {"$first": "$vitorias_com_deck"}
+            }
+        },
+        {"$sort": {"vitorias_totais": -1}},
+        {"$limit": 3}
+    ]
+
+    resultado = list(battles_collection.aggregate(pipeline))
+    return jsonify(resultado)
 
 
 
