@@ -11,19 +11,17 @@ from flask_cors import CORS
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 
-
 # Configuração do MongoDB
+# client = MongoClient("mongodb://localhost:27017/")
 uri = "mongodb+srv://brendofcg:qwer1234Bb@agrupamentobanco.zb2av.mongodb.net/?appName=AgrupamentoBanco"
-# client = MongoClient("mongodb://localhost:27017/")   
 client = MongoClient(uri, server_api=ServerApi('1')) 
 db = client["clash_royale"]
 players_collection = db["players"]
 battles_collection = db["battles"]
-
 # Configuração da API Flask
 app = Flask(__name__)
 cors = CORS(app)
-API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiIsImtpZCI6IjI4YTMxOGY3LTAwMDAtYTFlYi03ZmExLTJjNzQzM2M2Y2NhNSJ9.eyJpc3MiOiJzdXBlcmNlbGwiLCJhdWQiOiJzdXBlcmNlbGw6Z2FtZWFwaSIsImp0aSI6IjUzMGZiMzIxLWVlMDEtNDhmMC1iYjE3LWE0YmJkOTU5MDM3NiIsImlhdCI6MTc0NDYzMTkxNiwic3ViIjoiZGV2ZWxvcGVyLzhmNzA4NDY0LWIxMmYtMDdiMy0zN2FlLTU0NWY4MTM2YmEyMSIsInNjb3BlcyI6WyJyb3lhbGUiXSwibGltaXRzIjpbeyJ0aWVyIjoiZGV2ZWxvcGVyL3NpbHZlciIsInR5cGUiOiJ0aHJvdHRsaW5nIn0seyJjaWRycyI6WyIxNzkuMTI0LjE0MC4xMTMiXSwidHlwZSI6ImNsaWVudCJ9XX0.1Dw_StMUQ3jV68Rlz9KMuQIVKAz9XCKpmYk1Ql00lBakyvcFmAmOKCgrvDjZuABBr1vkd9rUwJhrPCOgazd1yw"  # Substitua pelo seu token real
+API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiIsImtpZCI6IjI4YTMxOGY3LTAwMDAtYTFlYi03ZmExLTJjNzQzM2M2Y2NhNSJ9.eyJpc3MiOiJzdXBlcmNlbGwiLCJhdWQiOiJzdXBlcmNlbGw6Z2FtZWFwaSIsImp0aSI6IjcwNTZjNmZjLWEyNmQtNGU2YS05MTY3LTY1OWM4YTI2YTU3NCIsImlhdCI6MTc0NDU1NDg5Nywic3ViIjoiZGV2ZWxvcGVyLzhmNzA4NDY0LWIxMmYtMDdiMy0zN2FlLTU0NWY4MTM2YmEyMSIsInNjb3BlcyI6WyJyb3lhbGUiXSwibGltaXRzIjpbeyJ0aWVyIjoiZGV2ZWxvcGVyL3NpbHZlciIsInR5cGUiOiJ0aHJvdHRsaW5nIn0seyJjaWRycyI6WyIyMDAuMjE1LjIyNi4wIl0sInR5cGUiOiJjbGllbnQifV19.QGuFhLVUOUEymTRzMGrAROEvQ5qTNayWAQ9zGnJDqjZYO7w8tzdFmuGqzhIKaoY8h8tnbbBvPXBFtC6Ukf3F4w"  # Substitua pelo seu token real
 HEADERS = {"Authorization": f"Bearer {API_KEY}"}
 
 # Função para buscar e armazenar dados de um jogador
@@ -38,13 +36,22 @@ def fetch_player_data(tag):
     return None
 
 # Função para buscar e armazenar batalhas de um jogador
+# Função para buscar e armazenar batalhas de um jogador
 def fetch_battle_log(tag):
     url = f"https://api.clashroyale.com/v1/players/%23{tag}/battlelog"
     response = requests.get(url, headers=HEADERS)
     if response.status_code == 200:
         battles = response.json()
         for battle in battles:
-            # Salva ou atualiza as batalhas
+            # Converter battleTime para datetime antes de salvar
+            try:
+                battle_time = datetime.strptime(battle["battleTime"], "%Y%m%dT%H%M%S.000Z")
+                battle["battleTime"] = battle_time  # Atualiza o battleTime com o formato datetime
+            except Exception as e:
+                print(f"Erro ao converter battleTime para datetime: {e}")
+                continue  # Caso não consiga converter, ignora essa batalha
+            
+            # Salva ou atualiza as batalhas no banco
             battles_collection.update_one({"battleTime": battle["battleTime"]}, {"$set": battle}, upsert=True)
         return battles
     return None
@@ -107,6 +114,7 @@ def calculate_win_rate(card_name, start_time, end_time):
         "win_rate": win_rate,
         "loss_rate": loss_rate
     }
+
 
 
 # Consulta 2: Decks completos com taxa de vitória superior a X%
@@ -296,32 +304,38 @@ def top_combos(n, min_win_rate, start_time, end_time):
 # Rota para calcular taxa de vitória
 @app.route("/winrate", methods=["GET"])
 def win_rate():
-    card_name = request.args.get('card_name')
-    start_time = request.args.get('start_time')
-    end_time = request.args.get('end_time')
+     card_name = request.args.get('card_name')
+     start_time = request.args.get('start_time')
+     end_time = request.args.get('end_time')
 
-    if not card_name or not start_time or not end_time:
-        return jsonify({"error": "Missing required parameters"}), 400
+     if not card_name or not start_time or not end_time:
+         return jsonify({"error": "Missing required parameters"}), 400
+ 
+     # Validar datas
+     start_time = validate_date(start_time)
+     end_time = validate_date(end_time)
+ 
+ 
+     if not start_time or not end_time:
+         return jsonify({"error": "Invalid date format. Use 'YYYY-MM-DDTHH:MM:SS'"}), 400
+ 
+     # Calcular win rate
+     
+     result = calculate_win_rate(card_name, start_time, end_time)
 
-    # Validar datas
-    start_time = validate_date(start_time)
-    end_time = validate_date(end_time)
+     
+ 
+     return jsonify(result)
 
-    if not start_time or not end_time:
-        return jsonify({"error": "Invalid date format. Use 'YYYY-MM-DDTHH:MM:SS'"}), 400
-
-    # Calcular win rate
-    result = calculate_win_rate(card_name, start_time, end_time)
-
-    return jsonify(result)
+     
 
 # Rota para obter decks vitoriosos
 @app.route('/winning-decks', methods=['GET'])
 def get_winning_decks():
     try:
         win_threshold = float(request.args.get('win_threshold', 50))
-        start_time = request.args.get('start_time', '2025-01-01T00:00:00')
-        end_time = request.args.get('end_time', '2025-04-01T00:00:00')
+        start_time = request.args.get('start_time', '2000-01-01T00:00:00')
+        end_time = request.args.get('end_time', '2100-01-01T00:00:00')
 
         start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
         end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
@@ -603,7 +617,7 @@ def combos_vencedores():
         "$sort": {"win_rate": -1}
     },
     {
-        "$limit": 100
+        "$limit": 1000
     }
 ]
 
