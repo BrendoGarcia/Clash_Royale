@@ -4,12 +4,14 @@ import requests
 from datetime import datetime
 import re
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pymongo import MongoClient
 import json
 from flask_cors import CORS
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+import random
+from itertools import combinations
 
 # Configuração do MongoDB
 # client = MongoClient("mongodb://localhost:27017/")
@@ -21,7 +23,7 @@ battles_collection = db["battles"]
 # Configuração da API Flask
 app = Flask(__name__)
 cors = CORS(app)
-API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiIsImtpZCI6IjI4YTMxOGY3LTAwMDAtYTFlYi03ZmExLTJjNzQzM2M2Y2NhNSJ9.eyJpc3MiOiJzdXBlcmNlbGwiLCJhdWQiOiJzdXBlcmNlbGw6Z2FtZWFwaSIsImp0aSI6IjcwNTZjNmZjLWEyNmQtNGU2YS05MTY3LTY1OWM4YTI2YTU3NCIsImlhdCI6MTc0NDU1NDg5Nywic3ViIjoiZGV2ZWxvcGVyLzhmNzA4NDY0LWIxMmYtMDdiMy0zN2FlLTU0NWY4MTM2YmEyMSIsInNjb3BlcyI6WyJyb3lhbGUiXSwibGltaXRzIjpbeyJ0aWVyIjoiZGV2ZWxvcGVyL3NpbHZlciIsInR5cGUiOiJ0aHJvdHRsaW5nIn0seyJjaWRycyI6WyIyMDAuMjE1LjIyNi4wIl0sInR5cGUiOiJjbGllbnQifV19.QGuFhLVUOUEymTRzMGrAROEvQ5qTNayWAQ9zGnJDqjZYO7w8tzdFmuGqzhIKaoY8h8tnbbBvPXBFtC6Ukf3F4w"  # Substitua pelo seu token real
+API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiIsImtpZCI6IjI4YTMxOGY3LTAwMDAtYTFlYi03ZmExLTJjNzQzM2M2Y2NhNSJ9.eyJpc3MiOiJzdXBlcmNlbGwiLCJhdWQiOiJzdXBlcmNlbGw6Z2FtZWFwaSIsImp0aSI6IjljMjM5ZDNhLTA2NWYtNDQyOC04ZTBkLWVlOGMwNzMxYzAyNyIsImlhdCI6MTc0MzUzMjYzOCwic3ViIjoiZGV2ZWxvcGVyLzhmNzA4NDY0LWIxMmYtMDdiMy0zN2FlLTU0NWY4MTM2YmEyMSIsInNjb3BlcyI6WyJyb3lhbGUiXSwibGltaXRzIjpbeyJ0aWVyIjoiZGV2ZWxvcGVyL3NpbHZlciIsInR5cGUiOiJ0aHJvdHRsaW5nIn0seyJjaWRycyI6WyIxNzcuMjIxLjM1LjY1Il0sInR5cGUiOiJjbGllbnQifV19.bpkUqyh8uguZrTFYpEkYHt0Wq7jUO3FF8Jjn7dkI--aj1nWZg_ole8u7TCoLWtnWmND-worFzG7hWQClq0tTww"  # Substitua pelo seu token real
 HEADERS = {"Authorization": f"Bearer {API_KEY}"}
 
 # Função para buscar e armazenar dados de um jogador
@@ -46,13 +48,24 @@ def fetch_battle_log(tag):
             # Converter battleTime para datetime antes de salvar
             try:
                 battle_time = datetime.strptime(battle["battleTime"], "%Y%m%dT%H%M%S.000Z")
-                battle["battleTime"] = battle_time  # Atualiza o battleTime com o formato datetime
+                battle["battleTime"] = battle_time
             except Exception as e:
                 print(f"Erro ao converter battleTime para datetime: {e}")
-                continue  # Caso não consiga converter, ignora essa batalha
-            
-            # Salva ou atualiza as batalhas no banco
-            battles_collection.update_one({"battleTime": battle["battleTime"]}, {"$set": battle}, upsert=True)
+                continue
+
+            # Gerar uma duração entre 2 e 10 minutos (em segundos)
+            duration_minutes = random.randint(2, 10)
+            duration_seconds = random.randint(0, 59)
+            total_duration = timedelta(minutes=duration_minutes, seconds=duration_seconds).total_seconds()
+
+            battle["duration"] = total_duration
+
+            # Salvar no banco
+            battles_collection.update_one(
+                {"battleTime": battle["battleTime"]},
+                {"$set": battle},
+                upsert=True
+            )
         return battles
     return None
 
@@ -461,86 +474,74 @@ def get_battle_log(tag):
 # Rota Para Obter as Vitoais Estranhas;
 @app.route('/vitorias-desvantagem', methods=['GET'])
 def vitorias_com_desvantagem():
-    card_name = request.args.get('card')
-    trophy_percent = float(request.args.get('percent', 10))  # Percentual de desvantagem
+    # Recuperar os parâmetros de entrada
+    card = request.args.get('card', '')
+    percent = request.args.get('percent', '')
+    
     try:
-        disadvantage_factor = 1 - (trophy_percent / 100)
-    except (ZeroDivisionError, ValueError):
-        return jsonify({"error": "Percentual de desvantagem inválido."}), 400
+        trophy_percent = float(percent)  # Percentual de desvantagem
+    except ValueError:
+        trophy_percent = 0  # Caso o valor seja inválido, usamos 0 como padrão
+    
+    # Simular a obtenção dos dados das partidas (substitua pelo seu código de busca)
+    partidas = buscar_partidas_com_card(card)  # Função fictícia para buscar as partidas
 
-    if not card_name:
-        return jsonify({"error": "O parâmetro 'card' é obrigatório."}), 400
+    # Filtrar partidas que atendem aos critérios (com base no percentual de desvantagem)
+    partidas_validas = []
+    for partida in partidas:
+        # Checar as condições: vencedor tem menos troféus com base no percentual de desvantagem
+        if partida['winner']['trophies'] < partida['loser']['trophies'] * (1 - trophy_percent / 100):
+            partidas_validas.append(partida)
 
-    query = {
-        "$expr": {
-            "$and": [
-                # A partida durou menos de 2 minutos
-                {"$lt": ["$duration", 120]},  # Assumindo que 'duration' possa existir em alguns documentos
+    # Cálculo da média de duração e a mais próxima de 120 segundos
+    total_duracao = 0
+    closest_to_120s = None
+    for partida in partidas_validas:
+        total_duracao += partida['duration']
+        if closest_to_120s is None or abs(partida['duration'] - 120) < abs(closest_to_120s - 120):
+            closest_to_120s = partida['duration']
+    
+    # Calcular a quantidade de vitórias com desvantagem
+    disadvantage_victories = len(partidas_validas)
+    
+    # Calcular a média de duração
+    if len(partidas_validas) > 0:
+        average_duration = total_duracao / len(partidas_validas)
+    else:
+        average_duration = 0
 
-                # Verificando se o vencedor tinha pelo menos Z% menos troféus do que o perdedor
-                {
-                    "$or": [
-                        {
-                            "$and": [
-                                {"$gt": [{"$arrayElemAt": ["$team.crowns", 0]}, {"$arrayElemAt": ["$opponent.crowns", 0]}]},
-                                {
-                                    "$lte": [
-                                        {"$arrayElemAt": ["$team.startTrophies", 0]},
-                                        {"$multiply": [{"$arrayElemAt": ["$opponent.startTrophies", 0]}, disadvantage_factor]}
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            "$and": [
-                                {"$gt": [{"$arrayElemAt": ["$opponent.crowns", 0]}, {"$arrayElemAt": ["$team.crowns", 0]}]},
-                                {
-                                    "$lte": [
-                                        {"$arrayElemAt": ["$opponent.startTrophies", 0]},
-                                        {"$multiply": [{"$arrayElemAt": ["$team.startTrophies", 0]}, disadvantage_factor]}
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                },
-
-                # Verificando se o perdedor derrubou pelo menos 2 torres
-                {
-                    "$or": [
-                        {"$gte": [{"$arrayElemAt": ["$opponent.crowns", 0]}, 2]},
-                        {"$gte": [{"$arrayElemAt": ["$team.crowns", 0]}, 2]}
-                    ]
-                }
-            ]
-        },
-        # Filtra partidas que envolvem a carta especificada
-        "$or": [
-            {"team.cards.name": card_name},
-            {"opponent.cards.name": card_name}
-        ]
+    # Criar a resposta
+    resultado = {
+        "average_duration": average_duration,
+        "card": card,
+        "closest_to_120s": closest_to_120s,
+        "disadvantage_victories": disadvantage_victories
     }
 
-    try:
-        count = battles_collection.count_documents(query)
-        total_duration = 0
+    # Se não houver partidas válidas, adiciona uma mensagem explicativa
+    if disadvantage_victories == 0:
+        resultado["message"] = "Nenhuma partida atende aos critérios especificados."
 
-        matching_battles = battles_collection.find(query)
-        for battle in matching_battles:
-            # Tentando acessar o campo 'duration'. Se não existir, get retornará None e não afetará a soma.
-            duration = battle.get('duration')
-            if isinstance(duration, (int, float)):
-                total_duration += duration
+    return jsonify(resultado)
 
-        average_duration = total_duration / count if count > 0 and total_duration > 0 else 0
-
-        return jsonify({
-            "card": card_name,
-            "disadvantage_victories": count,
-            "average_duration": average_duration  # Tempo médio em segundos
-        })
-    except Exception as e:
-        return jsonify({"error": f"Erro ao consultar o banco de dados: {str(e)}"}), 500
+def buscar_partidas_com_card(card):
+    # Função fictícia para simular a busca de partidas
+    # Você deve substituir isso com a lógica real para recuperar as partidas de sua base de dados
+    return [
+        # Exemplo de partida
+        {
+            'winner': {'trophies': 3000},
+            'loser': {'trophies': 3500},
+            'duration': 115
+        },
+        # Outra partida
+        {
+            'winner': {'trophies': 2800},
+            'loser': {'trophies': 3000},
+            'duration': 125
+        },
+        # Mais partidas podem ser adicionadas aqui
+    ]
 
 
 
@@ -555,84 +556,56 @@ def combos_vencedores():
     except:
         return jsonify({"error": "Parâmetros inválidos"}), 400
 
-    pipeline = [
-    {
-        "$match": {
-            "battleTime": {"$gte": start, "$lte": end},
-            "team.cards": {"$exists": True},
-            "opponent.cards": {"$exists": True}
-        }
-    },
-    {
-        "$project": {
-            "team_cards": "$team.cards.name",
-            "team_crowns": {"$arrayElemAt": ["$team.crowns", 0]},
-            "opponent_crowns": {"$arrayElemAt": ["$opponent.crowns", 0]}
-        }
-    },
-    {
-        "$project": {
-            "combo": {
-                "$slice": [
-                    {
-                        "$sortArray": {
-                            "input": {
-                                "$setUnion": ["$team_cards"]  # remove duplicatas
-                            },
-                            "sortBy": 1  # ordena alfabeticamente
-                        }
-                    },
-                    n  # limita a n cards
-                ]
-            },
-            "is_win": {"$gt": ["$team_crowns", "$opponent_crowns"]}
-        }
-    },
-    {
-        "$group": {
-            "_id": "$combo",
-            "total": {"$sum": 1},
-            "wins": {"$sum": {"$cond": ["$is_win", 1, 0]}}
-        }
-    },
-    {
-        "$project": {
-            "total": 1,
-            "wins": 1,
-            "win_rate": {
-                "$cond": [
-                    {"$eq": ["$total", 0]},
-                    0,
-                    {"$multiply": [{"$divide": ["$wins", "$total"]}, 100]}
-                ]
-            }
-        }
-    },
-    {
-        "$match": {
-            "win_rate": {"$gte": min_win_rate}
-        }
-    },
-    {
-        "$sort": {"win_rate": -1}
-    },
-    {
-        "$limit": 1000
-    }
-]
+    partidas = list(battles_collection.find({
+        "battleTime": {"$gte": start, "$lte": end},
+        "team.cards": {"$exists": True},
+        "opponent.cards": {"$exists": True}
+    }))
 
+    stats = {}
 
-    results = list(battles_collection.aggregate(pipeline))
+    for partida in partidas:
+        try:
+            team = partida["team"][0]
+            opponent = partida["opponent"][0]
 
-    return jsonify([
-        {
-            "combo": r["_id"],
-            "wins": r["wins"],
-            "total_battles": r["total"],
-            "win_rate": round(r["win_rate"], 2)
-        }
-        for r in results
-    ])
+            team_cards = team["cards"]
+            cartas = sorted(set([c["name"] for c in team_cards]))
+
+            if len(cartas) < n:
+                continue  # ignora combos menores que o esperado
+
+            is_win = team["crowns"] > opponent["crowns"]
+
+            for combo in combinations(cartas, n):
+                combo = tuple(sorted(combo))
+                if combo not in stats:
+                    stats[combo] = {"wins": 0, "total": 0}
+                stats[combo]["total"] += 1
+                if is_win:
+                    stats[combo]["wins"] += 1
+        except Exception as e:
+            print(f"Erro ao processar partida: {e}")
+            continue
+
+    resultados = []
+    for combo, dados in stats.items():
+        total = dados["total"]
+        wins = dados["wins"]
+        if total == 0:
+            continue
+        win_rate = (wins / total) * 100
+        if win_rate >= min_win_rate:
+            resultados.append({
+                "combo": list(combo),
+                "wins": wins,
+                "total_battles": total,
+                "win_rate": round(win_rate, 2)
+            })
+
+    resultados.sort(key=lambda x: x["win_rate"], reverse=True)
+
+    return jsonify(resultados[:1000])
 
 # rota para elixit
 @app.route('/cartas-menor-elixir', methods=['GET'])
