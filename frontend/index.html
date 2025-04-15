@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,11 +8,12 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <!-- Decorações laterais dos Reis -->
     <div class="cr-side-decor left-decor"></div>
     <div class="cr-side-decor right-decor"></div>
-    
+
     <header class="cr-header">
         <div class="cr-logo-container">
             <img src="./img/cr-logo.png" alt="Clash Royale Logo" class="cr-logo">
@@ -142,6 +144,48 @@
                 <pre id="cv_result"></pre>
             </div>
         </section>
+
+        <!-- 8. Cartas com menor custo de elixir -->
+        <section class="card-effect">
+            <div class="cr-card-icon">
+                <img src="./img/icons48.png" alt="Underdog Icon">
+            </div>
+            <h2>8. Cartas com menor custo de elixir</h2>
+            <div class="cr-form-content">
+                <div class="cr-button-container">
+                    <button onclick="getCartasMenorElixir()">BUSCAR</button>
+                </div>
+                <pre id="vd_result"></pre>
+            </div>
+        </section>
+
+        <!-- 9. Cartas mais comuns -->
+        <section class="card-effect">
+            <div class="cr-card-icon">
+                <img src="./img/icons48.png" alt="Underdog Icon">
+            </div>
+            <h2>9. Cartas mais comuns</h2>
+            <div class="cr-form-content">
+                <div class="cr-button-container">
+                    <button onclick="getCartasMaisComuns()">BUSCAR</button>
+                </div>
+                <pre id="vd_result"></pre>
+            </div>
+        </section>
+
+        <!-- 10. Jogadores com mais vitorias e seus decks -->
+        <section class="card-effect">
+            <div class="cr-card-icon">
+                <img src="./img/icons48.png" alt="Underdog Icon">
+            </div>
+            <h2>10. Jogadores com mais vitorias e seus decks</h2>
+            <div class="cr-form-content">
+                <div class="cr-button-container">
+                    <button onclick="getTopJogadores()">BUSCAR</button>
+                </div>
+                <pre id="vd_result"></pre>
+            </div>
+        </section>
     </main>
 
     <footer class="cr-footer">
@@ -150,4 +194,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>
