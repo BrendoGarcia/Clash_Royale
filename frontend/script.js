@@ -67,3 +67,21 @@ async function getCombosVencedores() {
     const data = await res.json();
     document.getElementById("cv_result").textContent = JSON.stringify(data, null, 2);
 }
+
+async function getTopJogadores(){
+    const res = await fetch(`${baseUrl}/top-jogadores`);
+    const data = await res.json();
+    document.getElementById("top_result").textContent = JSON.stringify(data, null, 2);
+}
+
+async function getCartasMaisComuns(){
+    const res = await fetch(`${baseUrl}/cartas-mais-comuns`);
+    const data = await res.json();
+    document.getElementById("comunss_result").textContent = JSON.stringify(data, null, 2);
+}
+
+async function getCartasMenorElixir(){
+    const res = await fetch(`${baseUrl}/cartas-menor-elixir`);
+    const data = await res.json();
+    document.getElementById("elisir_results").textContent = JSON.stringify(data, null, 2);
+}
