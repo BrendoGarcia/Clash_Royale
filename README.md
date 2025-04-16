@@ -9,6 +9,7 @@ Atenção instalar as bibliotecas antes de rodas o codigo,
 Por ultimo se quiser usar os dados de batalha de outro jogador é preciso ou baixar os dados aparir da api. ou fazer uma requisição das batalhas pela api. 
 PS: Já temos esse endpoint funcionando
 
+Foi Criado uma varíavel de valores aleatórias para lidar com a duração das batalhas, variando de 2 à 5 minutos
 
 
 Antes de Fazer qualquer consulta deve ser feito uma requisição. requisição essa com a função de pegar os dados da api e armazenar no banco MongoDB.
