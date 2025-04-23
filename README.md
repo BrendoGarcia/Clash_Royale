@@ -19,7 +19,7 @@ Deve ser feito de seguinte forma.
 
 Comando para instalar as dependencias do código
 ```bash
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
 Comando para rodar o backend do projeto:
