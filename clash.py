@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+import os
+from flask import Flask, request, jsonify, send_from_directory
 from pymongo import MongoClient
 import requests
 from datetime import datetime
@@ -14,17 +15,27 @@ import random
 from itertools import combinations
 
 # Configuração do MongoDB
-# client = MongoClient("mongodb://localhost:27017/")
-uri = "mongodb+srv://brendofcg:qwer1234Bb@agrupamentobanco.zb2av.mongodb.net/?appName=AgrupamentoBanco"
-client = MongoClient(uri, server_api=ServerApi('1')) 
+MONGODB_URI = os.environ.get("MONGODB_URI")
+if not MONGODB_URI:
+    raise RuntimeError("MONGODB_URI não configurada.")
+
+client = MongoClient(MONGODB_URI, server_api=ServerApi("1"))
 db = client["clash_royale"]
 players_collection = db["players"]
 battles_collection = db["battles"]
-# Configuração da API Flask
-app = Flask(__name__)
-cors = CORS(app)
-API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiIsImtpZCI6IjI4YTMxOGY3LTAwMDAtYTFlYi03ZmExLTJjNzQzM2M2Y2NhNSJ9.eyJpc3MiOiJzdXBlcmNlbGwiLCJhdWQiOiJzdXBlcmNlbGw6Z2FtZWFwaSIsImp0aSI6IjVhMWI0NjgwLTZjMmQtNDg1ZC1hZWNkLTM2ZDU2MTU4MmM1NSIsImlhdCI6MTc0NDgwNjczNSwic3ViIjoiZGV2ZWxvcGVyLzhmNzA4NDY0LWIxMmYtMDdiMy0zN2FlLTU0NWY4MTM2YmEyMSIsInNjb3BlcyI6WyJyb3lhbGUiXSwibGltaXRzIjpbeyJ0aWVyIjoiZGV2ZWxvcGVyL3NpbHZlciIsInR5cGUiOiJ0aHJvdHRsaW5nIn0seyJjaWRycyI6WyIxNzkuMjQwLjI2LjIxMiJdLCJ0eXBlIjoiY2xpZW50In1dfQ.MfU9NuHVs-kHMbtmUTz6g2qB30o6eMildy4J58tKeU0xSF0AWbb2hE7rsXM2xUXkVvo562gyFvgqQmsthHQ2ww"  # Substitua pelo seu token real
+
+app = Flask(__name__, static_folder="frontend", static_url_path="")
+CORS(app)
+
+API_KEY = os.environ.get("CLASH_ROYALE_API_KEY")
+if not API_KEY:
+    raise RuntimeError("CLASH_ROYALE_API_KEY não configurada.")
+
 HEADERS = {"Authorization": f"Bearer {API_KEY}"}
+
+@app.route("/")
+def index():
+    return send_from_directory(app.static_folder, "index.html")
 
 # Função para buscar e armazenar dados de um jogador
 def fetch_player_data(tag):
