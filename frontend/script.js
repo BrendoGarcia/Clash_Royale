@@ -1,4 +1,4 @@
-const baseUrl = "https://projetomongo-456802.rj.r.appspot.com";
+const baseUrl = window.location.origin;
 
 function formatDate(id) {
     const val = document.getElementById(id).value;
