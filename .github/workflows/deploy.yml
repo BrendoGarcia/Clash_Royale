@@ -1,4 +1,4 @@
-name: Deploy Clash Royale
+name: Deploy Clash Royale App
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout application
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -20,9 +20,12 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: python -m pip install -r requirements.txt
 
-      - name: Validate Python
+      - name: Validate application
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          CLASH_ROYALE_API_KEY: ${{ secrets.CLASH_ROYALE_API_KEY }}
         run: python -m py_compile clash.py
 
       - name: Authenticate Google Cloud
@@ -30,13 +33,34 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
-      - name: Setup gcloud
+      - name: Setup Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Deploy to App Engine
-        run: gcloud app deploy app.yaml --quiet
+      - name: Prepare App Engine configuration
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           CLASH_ROYALE_API_KEY: ${{ secrets.CLASH_ROYALE_API_KEY }}
+        run: |
+          cat > app.yaml <<EOF
+          runtime: python311
+          entrypoint: gunicorn --bind :\$PORT clash:app
+
+          env_variables:
+            FLASK_ENV: production
+            MONGODB_URI: "$MONGODB_URI"
+            CLASH_ROYALE_API_KEY: "$CLASH_ROYALE_API_KEY"
+
+          handlers:
+            - url: /.*
+              script: auto
+          EOF
+
+      - name: Deploy the actual Flask application
+        run: gcloud app deploy app.yaml --quiet
+
+      - name: Show deployed application URL
+        run: |
+          echo "Application deployed:"
+          gcloud app browse --no-launch-browser
